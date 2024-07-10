@@ -1,9 +1,10 @@
-"use client";
+'use client';
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import Cookies from "js-cookie";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Toast, ToastProvider, ToastTitle, ToastDescription, ToastViewport, ToastClose } from "@/components/ui/toast";
+import { login } from "@/lib/lib";
 
 const formSchema = z.object({
   username: z.string().min(2, {
@@ -36,46 +39,82 @@ export function LoginForm() {
       password: "",
     },
   });
+  const router = useRouter();
+  const [toast, setToast] = useState<{ title: string, description: string } | null>(null);
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    Cookies.set('loggedIn', 'true', { expires: 1 }); // Expires in 1 day
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    const formData = new FormData();
+    formData.append("username", values.username);
+    formData.append("password", values.password);
+
+    const response = await login(formData);
+
+    if (response.success) {
+      setToast({ title: "Success", description: response.message });
+
+      // Redirect to dashboard after 2 seconds
+      setTimeout(() => {
+        router.push("/dashboard"); // Redirect to a protected route
+      }, 2000);
+    } else {
+      setToast({ title: "Error", description: response.message });
+    }
   }
 
   return (
-    <FormProvider {...form}>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <FormField
-            control={form.control}
-            name="username"
-            render={({ field }) => (
-              <FormItem className="min-w-[300px]">
-                <FormLabel>Username</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter your username" {...field} />
-                </FormControl>
-                <FormMessage className="whitespace-pre-wrap"/>
-              </FormItem>
-            )}
-          />
+    <ToastProvider>
+      <ToastViewport />
+      {toast && (
+        <Toast>
+          <ToastTitle>{toast.title}</ToastTitle>
+          <ToastDescription>{toast.description}</ToastDescription>
+          <ToastClose />
+        </Toast>
+      )}
+      <FormProvider {...form}>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem className="min-w-[300px]">
+                  <FormLabel>Username</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter your username" {...field} />
+                  </FormControl>
+                  <FormMessage className="whitespace-pre-wrap" />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="Enter your password" {...field} />
-                </FormControl>
-                <FormMessage className="whitespace-pre-line"/>
-              </FormItem>
-            )}
-          />
-          <Button type="submit">Submit</Button>
-        </form>
-      </Form>
-    </FormProvider>
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="Enter your password" {...field} />
+                  </FormControl>
+                  <FormMessage className="whitespace-pre-line" />
+                </FormItem>
+              )}
+            />
+            <Button type="submit">Submit</Button>
+          </form>
+        </Form>
+      </FormProvider>
+    </ToastProvider>
   );
 }
