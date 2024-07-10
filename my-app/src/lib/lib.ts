@@ -53,6 +53,7 @@ export async function getSession() {
 export async function logout() {
   // Destroy the token
   cookies().set("token", "", { expires: new Date(0) });
+  return { success: true, message: "Logout successful!" };
 }
 
 export async function updateSession(request: NextRequest) {
